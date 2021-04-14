@@ -9,7 +9,8 @@ installs a tracepoint handler which is triggered once every second. It uses
 read `/sys/kernel/debug/tracing/trace_pipe` file as a root:
 
 ```shell
-$ make minimal
+$ cd examples/c/minimal
+$ make
 $ sudo ./minimal
 $ sudo cat /sys/kernel/debug/tracing/trace_pipe
            <...>-3840345 [010] d... 3220701.101143: bpf_trace_printk: BPF triggered from PID 3840345.
@@ -159,9 +160,9 @@ $ sudo cat /sys/kernel/debug/tracing/trace_pipe
 
 ```shell
 $ git submodule update --init --recursive       # check out libbpf
-$ cd src
+$ cd examples/c
 $ make
-$ sudo ./bootstrap
+$ sudo ./bootstrap/bootstrap
 TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
 00:21:22 EXIT  python3.8        4032353 4032352 [0] (123ms)
 00:21:22 EXEC  mkdir            4032379 4032337 /usr/bin/mkdir
