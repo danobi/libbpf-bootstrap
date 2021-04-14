@@ -2,17 +2,18 @@
 OUTPUT := .output
 CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
-BPFTOOL ?= $(abspath ../tools/bpftool)
-LIBBPF_SRC := $(abspath ../libbpf/src)
+BPFTOOL ?= $(abspath ../../tools/bpftool)
+LIBBPF_SRC := $(abspath ../../libbpf/src)
 LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
+VMLINUX := ../../vmlinux/vmlinux.h
 # Use our own libbpf API headers and Linux UAPI headers distributed with
 # libbpf to avoid dependency on system-wide headers, which could be missing or
 # outdated
-INCLUDES := -I$(OUTPUT) -I../libbpf/include/uapi
+INCLUDES := -I$(OUTPUT) -I../../libbpf/include/uapi -I$(dir $(VMLINUX))
 CFLAGS := -g -Wall
 ARCH := $(shell uname -m | sed 's/x86_64/x86/')
 
-APPS = minimal bootstrap uprobe kprobe fentry
+APPS = minimal/minimal bootstrap/bootstrap uprobe/uprobe kprobe/kprobe fentry/fentry
 
 # Get Clang's default includes on this system. We'll explicitly add these dirs
 # to the includes list when compiling with `-target bpf` because otherwise some
@@ -45,6 +46,21 @@ clean:
 	$(call msg,CLEAN)
 	$(Q)rm -rf $(OUTPUT) $(APPS)
 
+.PHONY: minimal
+minimal: minimal/minimal
+
+.PHONY: bootstrap
+bootstrap: bootstrap/bootstrap
+
+.PHONY: uprobe
+uprobe: uprobe/uprobe
+
+.PHONY: kprobe
+kprobe: kprobe/kprobe
+
+.PHONY: fentry
+fentry: fentry/fentry
+
 $(OUTPUT) $(OUTPUT)/libbpf:
 	$(call msg,MKDIR,$@)
 	$(Q)mkdir -p $@
@@ -58,8 +74,9 @@ $(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPU
 		    install
 
 # Build BPF code
-$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) vmlinux.h | $(OUTPUT)
+$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT)
 	$(call msg,BPF,$@)
+	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
 	$(Q)$(LLVM_STRIP) -g $@ # strip useless DWARF info
 
@@ -73,12 +90,19 @@ $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 
 $(OUTPUT)/%.o: %.c $(wildcard %.h) | $(OUTPUT)
 	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -I$(dir $@) -c $(filter %.c,$^) -o $@
 
 # Build application binary
 $(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
 	$(Q)$(CC) $(CFLAGS) $^ -lelf -lz -o $@
+
+CLEANAPPS := $(addprefix clean-,$(APPS))
+.PHONY: $(CLEANAPPS)
+$(CLEANAPPS):
+	$(call msg,CLEAN,$(@:clean-%=%))
+	$(Q)rm -rf $(OUTPUT)/$(dir $(@:clean-%=%))
+	$(Q)rm -rf $(@:clean-%=%)
 
 # delete failed targets
 .DELETE_ON_ERROR:

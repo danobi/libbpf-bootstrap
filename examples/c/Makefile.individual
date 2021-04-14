@@ -1,0 +1,12 @@
+BINARY := $(notdir $(realpath .))
+TARGET := $(BINARY)/$(BINARY)
+
+MAKEFLAGS += --no-print-directory
+
+.PHONY: all
+all:
+	@$(MAKE) -C .. $(TARGET)
+
+.PHONY: clean
+clean:
+	@$(MAKE) -C .. clean-$(TARGET)
