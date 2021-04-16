@@ -61,7 +61,8 @@ kprobe: kprobe/kprobe
 .PHONY: fentry
 fentry: fentry/fentry
 
-$(OUTPUT) $(OUTPUT)/libbpf:
+APP_OUTPUT_DIRS := $(foreach app,$(notdir $(APPS)),$(OUTPUT)/$(app))
+$(OUTPUT) $(OUTPUT)/libbpf $(APP_OUTPUT_DIRS):
 	$(call msg,MKDIR,$@)
 	$(Q)mkdir -p $@
 
@@ -74,9 +75,11 @@ $(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPU
 		    install
 
 # Build BPF code
-$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT)
+$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT) $(OUTPUT)/$(notdir %)
+	$(info DEPS $*)
+	$(info ORDERONLY $|)
+
 	$(call msg,BPF,$@)
-	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
 	$(Q)$(LLVM_STRIP) -g $@ # strip useless DWARF info
 
